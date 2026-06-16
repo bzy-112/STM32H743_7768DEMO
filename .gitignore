@@ -1,0 +1,59 @@
+# STM32 Cube / MDK build artifacts
+**/MDK-ARM/DebugConfig/
+**/MDK-ARM/**/Objects/
+**/MDK-ARM/**/Listings/
+**/MDK-ARM/**/RTE/
+**/MDK-ARM/**/JLinkLog.txt
+**/MDK-ARM/**/JLinkSettings.ini
+**/MDK-ARM/**/*.lst
+**/MDK-ARM/**/*.map
+**/MDK-ARM/**/*.pdb
+**/MDK-ARM/**/*.AXF
+**/MDK-ARM/**/*.elf
+**/MDK-ARM/**/*.hex
+
+# CubeIDE / CubeMX generated backups
+**/*.launch
+**/*.cproject
+**/.settings/
+**/.idea/
+
+# Build artifacts
+**/build/
+**/*.o
+**/*.exe
+**/*.d
+**/*.axf
+**/*.log
+
+# Generated code backups
+**/*~
+**/*.bak
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+Thumbs.db
+.DS_Store
+
+# MDK build intermediates (large crf/dep/htm/lst files)
+**/MDK-ARM/**/*.crf
+**/MDK-ARM/**/*.dep
+**/MDK-ARM/**/*.htm
+**/MDK-ARM/**/*.build_log.htm
+**/MDK-ARM/**/*.lnp
+**/MDK-ARM/**/*.bin
+**/MDK-ARM/**/*.iex
+**/MDK-ARM/**/ExtDll.iex
+**/MDK-ARM/**/EventRecorderStub.scvd
+**/MDK-ARM/**/*_sct.Bak
+
+# Local configuration
+*.uvguix.*
+*.uvoptx
+*.uvprojx.bak
+*.ioproj
