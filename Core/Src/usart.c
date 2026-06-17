@@ -31,7 +31,9 @@ int fputc(int ch, FILE *f)
     return ch;
 }
 
-#define RECE_SIZE		200					//最大不超过0x1000 / 4
+#define DEBUG		0		//1表示debug模式，uart发送与接收分开存储，0表示公用存储
+
+#define RECE_SIZE		10					//数组大小，uartdma数组内存总共不能超过1000
 
 // Memory0（rx1_buf_a）满的回调
 void My_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma);
@@ -41,21 +43,20 @@ void My_DMA_XferM1CpltCallback(DMA_HandleTypeDef *hdma);
 void My_DMA_ErrorCallback(DMA_HandleTypeDef *hdma);
 HAL_StatusTypeDef UARTEx_MultiBuffer_ReceiveToIdle(void);
 
-__attribute__((section(".dmauart1_buffer"), aligned(32))) uint32_t rx1_buf_a[RECE_SIZE];
-__attribute__((section(".dmauart1_buffer"), aligned(32))) uint32_t rx1_buf_b[RECE_SIZE];
+__attribute__((section(".dmauart1_buffer"), aligned(32))) uint32_t huart1_buf[RECE_SIZE * 2];
+uint32_t * rx1_buf = huart1_buf;
 
 volatile uint8_t current_buffer = 0;//缓冲区标志
 volatile uint8_t actual_rx_len = 0;//接受数据长度
 volatile uint8_t rx_complete_flag = 0;//缓冲区满标志
 volatile uint8_t idle_triggered  = 0;//空闲中断标志位
 
-
-__attribute__((section(".dmauart1_buffer"), aligned(32))) uint8_t tx_buf_a[RECE_SIZE];
-__attribute__((section(".dmauart1_buffer"), aligned(32))) uint8_t tx_buf_b[RECE_SIZE];
-
-volatile uint8_t tx_current_buf = 0;    // 当前 DMA 正在发送哪一块（0 -> A，1 -> B）
-volatile uint8_t tx_ready_flag = 0;     // CPU 已经填好下一块
-volatile uint8_t tx_idle_flag  = 1;     // 初始空闲
+#if DEBUG
+__attribute__((section(".dmauart1_buffer"), aligned(32))) uint8_t tx1_buf[2][RECE_SIZE];
+#else
+#define tx1_buf rx1_buf
+#endif
+volatile uint8_t tx_current_buf = 0;    // 当前 DMA 发送完成
 
 /* USER CODE END 0 */
 
@@ -76,9 +77,7 @@ void MX_USART1_UART_Init(void)
   /* USER CODE END USART1_Init 0 */
 
   /* USER CODE BEGIN USART1_Init 1 */
-	huart1.ReceptionType = HAL_UART_RECEPTION_TOIDLE;
-	huart1.RxEventType = HAL_UART_RXEVENT_IDLE;
-	huart1.RxXferSize = RECE_SIZE;
+
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
   huart1.Init.BaudRate = 115200;
@@ -366,23 +365,13 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
-void UART_Tx_DMA_Cplt(DMA_HandleTypeDef *hdma)
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-    tx_current_buf = 1;     // 刚发送完 A，切换到 B
-    tx_idle_flag  = 1;      // 这块缓冲空出来了
+	if(huart == &huart1)
+	{
+		tx_current_buf = 1;
+	}
 }
-
-void UART_Tx_DMA_M1Cplt(DMA_HandleTypeDef *hdma)
-{
-    tx_current_buf = 0;     // 刚发送完 B，切换回 A
-    tx_idle_flag  = 1;
-}
-
-void UART_Tx_DMA_Error(DMA_HandleTypeDef *hdma)
-{
-    // 记录错误，必要时复位 DMA
-}
-
 
 // Memory0（rx1_buf_a）满的回调
 void My_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma)
@@ -390,7 +379,6 @@ void My_DMA_XferCpltCallback(DMA_HandleTypeDef *hdma)
  if(hdma->Instance == DMA1_Stream1 && !idle_triggered)
  {
    current_buffer = 1;  // 切换到Memory1（rx1_buf_b）
-   actual_rx_len = RECE_SIZE;
    rx_complete_flag = 1; // 标记缓冲区满，供主函数处理rx1_buf_a
  }
 }
@@ -401,7 +389,6 @@ void My_DMA_XferM1CpltCallback(DMA_HandleTypeDef *hdma)
  if(hdma->Instance == DMA1_Stream1 && !idle_triggered)
  {
    current_buffer = 0;  // 切换到Memory0（rx1_buf_a）
-   actual_rx_len = RECE_SIZE;
    rx_complete_flag = 1; // 标记缓冲区满，供主函数处理rx1_buf_b
  }
 }
@@ -415,8 +402,8 @@ void My_DMA_ErrorCallback(DMA_HandleTypeDef *hdma)
    HAL_DMA_Abort(&hdma_usart1_rx);
    HAL_DMAEx_MultiBufferStart_IT(&hdma_usart1_rx,
                                 (uint32_t)&USART1->RDR,
-                                (uint32_t)rx1_buf_a,
-                                (uint32_t)rx1_buf_b,
+                                (uint32_t)rx1_buf,
+                                (uint32_t)&rx1_buf[RECE_SIZE - 1],
                                 RECE_SIZE);
  }
 }
@@ -436,25 +423,22 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 void Send_RxData(void)
 {
 	if(rx_complete_flag && !idle_triggered)
-	{
-		if(actual_rx_len == RECE_SIZE)
+	{		
+		// 缓冲区满：处理对应缓冲区的数据
+		if(current_buffer == 1) // 刚填满buf_a，切换到buf_b
 		{
-			// 缓冲区满：处理对应缓冲区的数据
-			if(current_buffer == 1) // 刚填满buf_a，切换到buf_b
-			{
-				printf("buf_a满\r\n");
-				HAL_UART_Transmit(&huart1,rx1_buf_a,RECE_SIZE, 0xFFFF);
-				printf("\r\n");
-			}
-			else // 刚填满buf_b，切换到buf_a
-			{
-				printf("buf_b满\r\n");
-				HAL_UART_Transmit(&huart1,rx1_buf_b,RECE_SIZE, 0xFFFF);
-				printf("\r\n");
-			}
-			// 清空标志，准备下一次接收
-			rx_complete_flag = 0;
+			printf("buf_a满\r\n");
+			HAL_UART_Transmit_DMA(&huart1, tx1_buf, RECE_SIZE);
+			printf("\r\n");
 		}
+		else // 刚填满buf_b，切换到buf_a
+		{
+			printf("buf_b满\r\n");
+			HAL_UART_Transmit_DMA(&huart1, &tx1_buf[RECE_SIZE - 1], RECE_SIZE);
+			printf("\r\n");
+		}
+		// 清空标志，准备下一次接收
+		rx_complete_flag = 0;
 	}
 	if(idle_triggered && !rx_complete_flag)
 	{
@@ -464,27 +448,28 @@ void Send_RxData(void)
 			if(current_buffer == 0) // 活跃缓冲区是buf_a
 			{
 				printf("IDLE触发 buf_a:\r\n");
-				HAL_UART_Transmit(&huart1,rx1_buf_a,actual_rx_len, 0xFFFF);
-				printf("\r\n");
 			}
 			else // 活跃缓冲区是buf_b
 			{
 				printf("IDLE触发 buf_b:\r\n");
-				HAL_UART_Transmit(&huart1,rx1_buf_b,actual_rx_len, 0xFFFF);
-				printf("\r\n");
 			}
 		}
+	}
+	if(tx_current_buf)
+	{
+		tx_current_buf = 0;
+		printf("TxDMA_suc\r\n");
 	}
 }
 
 HAL_StatusTypeDef UARTEx_MultiBuffer_ReceiveToIdle(void)
 {
 	HAL_StatusTypeDef status;
-  if (huart1.RxState == HAL_UART_STATE_READY)
-  {
+	if (huart1.RxState == HAL_UART_STATE_READY)
+	{
 
-    	huart1.ReceptionType = HAL_UART_RECEPTION_TOIDLE;
-    	huart1.RxEventType = HAL_UART_RXEVENT_IDLE;
+		huart1.ReceptionType = HAL_UART_RECEPTION_TOIDLE;
+		huart1.RxEventType = HAL_UART_RXEVENT_IDLE;
 		huart1.RxXferSize = RECE_SIZE;
 
 		huart1.ErrorCode = HAL_UART_ERROR_NONE;
@@ -494,25 +479,24 @@ HAL_StatusTypeDef UARTEx_MultiBuffer_ReceiveToIdle(void)
 		HAL_DMA_RegisterCallback(&hdma_usart1_rx, HAL_DMA_XFER_M1CPLT_CB_ID, My_DMA_XferM1CpltCallback);
 		// DMA错误回调
 		HAL_DMA_RegisterCallback(&hdma_usart1_rx, HAL_DMA_XFER_ERROR_CB_ID, My_DMA_ErrorCallback);
-		status =  HAL_DMAEx_MultiBufferStart_IT(&hdma_usart1_rx,(uint32_t)&(USART1->RDR),(uint32_t)rx1_buf_a,(uint32_t)rx1_buf_b,RECE_SIZE);
-	    if (huart1.ReceptionType == HAL_UART_RECEPTION_TOIDLE)
-	    {
+		status =  HAL_DMAEx_MultiBufferStart_IT(&hdma_usart1_rx,(uint32_t)&(USART1->RDR),(uint32_t)rx1_buf,(uint32_t)&rx1_buf[RECE_SIZE - 1],RECE_SIZE);
+
+		if (huart1.ReceptionType == HAL_UART_RECEPTION_TOIDLE)
+		{
 			__HAL_UART_CLEAR_IDLEFLAG(&huart1);
 			ATOMIC_SET_BIT(huart1.Instance->CR1, USART_CR1_IDLEIE);
 			ATOMIC_SET_BIT(huart1.Instance->CR3, USART_CR3_DMAR);
-	    }
-	    else
-	    {
-	      status = HAL_ERROR;
-	    }
-	
-	    return status;
-	  }
-	  else
-	  {
-	    return HAL_BUSY;
-	  }
-	
+		}
+		else
+		{
+			status = HAL_ERROR;
+		}
+		return status;
+	}
+	else
+	{
+		return HAL_BUSY;
+	}
 }
 
 
