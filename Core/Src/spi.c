@@ -138,27 +138,4 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 
 /* USER CODE BEGIN 1 */
 
-void SPI2_Rx_M0Cplt(DMA_HandleTypeDef *hdma)
-{
-    // buf_a 满
-}
-
-void SPI2_Rx_M1Cplt(DMA_HandleTypeDef *hdma)
-{
-    // buf_b 满
-}
-
-void SPIx_MultiBuffer_Receive(void)
-{
-	hdma_spi2_rx.XferCpltCallback = SPI2_Rx_M0Cplt;
-	hdma_spi2_rx.XferM1CpltCallback = SPI2_Rx_M1Cplt;
-
-	HAL_DMAEx_MultiBufferStart_IT(&hdma_spi2_rx,
-								  (uint32_t)&SPI2->RXDR,
-								  (uint32_t)spi2_buf,
-								  (uint32_t)&spi2_buf[RECE_SIZE - 1],
-								  RECE_SIZE);
-
-	__HAL_SPI_ENABLE(&hspi2);
-}
 /* USER CODE END 1 */
