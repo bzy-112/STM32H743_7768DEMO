@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
+#include "ad7768.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -103,7 +104,6 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_SPI1_Init();
-  MX_SPI2_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
@@ -113,9 +113,10 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   UARTEx_MultiBuffer_ReceiveToIdle();
+  ad7768_init();
   while (1)
   {	
-	  Send_RxData();
+//	  Send_RxData();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
