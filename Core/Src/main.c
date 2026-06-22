@@ -106,6 +106,7 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -114,8 +115,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   UARTEx_MultiBuffer_ReceiveToIdle();
   ad7768_init();
+  start();
   while (1)
   {	
+	  ad7768_read_and_print();
 //	  Send_RxData();
     /* USER CODE END WHILE */
 
