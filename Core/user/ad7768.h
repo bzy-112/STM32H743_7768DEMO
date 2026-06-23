@@ -64,5 +64,7 @@
 
 
 void ad7768_init(void);
+void ad7768_read_and_print(void);
+void start(void);
 
 #endif

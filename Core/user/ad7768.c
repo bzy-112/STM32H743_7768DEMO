@@ -1,10 +1,12 @@
 #include "spi.h"
 #include "stdio.h"
 #include "ad7768.h"
+#include "hal_key.h"
 
 extern SPI_HandleTypeDef hspi1;
 extern SPI_HandleTypeDef hspi2;
 extern UART_HandleTypeDef huart1;
+extern TIM_HandleTypeDef htim6;
 #define CS_0()  HAL_GPIO_WritePin(CS_GPIO_Port,CS_Pin,GPIO_PIN_RESET)
 #define CS_1()  HAL_GPIO_WritePin(CS_GPIO_Port,CS_Pin,GPIO_PIN_SET)
 
@@ -29,20 +31,31 @@ void ad7768_gain_set(uint8_t chn, uint32_t gain)
 	add7768_write_cmd(AD7768_REG_CH_GAIN_3(chn-1), (gain>>0)  & 0x000000ff);
 }
 
+void set_Multiple(uint8_t Multiple)
+{
+//	printf("hellow\n");
+	HAL_GPIO_WritePin(A2_GPIO_Port,A2_Pin, Multiple >> 2 & 0x01);
+	HAL_GPIO_WritePin(A1_GPIO_Port,A1_Pin, Multiple >> 1 & 0x01);
+	HAL_GPIO_WritePin(A0_GPIO_Port,A0_Pin, Multiple >> 0 & 0x01);
+}
+uint8_t Multiple = 0;
+void Key_CallBack_t(EN_KEYNUM keys,KEY_VALUE_TYPEDEF sta)
+{
+	if(keys == KEY0)
+	{
+		if(sta == KEY_CLICK)
+		{
+			if(Multiple == 0x8)
+				Multiple = 0;
+			set_Multiple(Multiple);
+			Multiple++;
+		}
+	}
+}
 
 void ad7768_init(void)
 {
-//	add7768_write_cmd( 0x04,0x00);
-//	add7768_write_cmd( 0x07,0x00);
-//	add7768_write_cmd( 0x06,0x80);
-//	add7768_write_cmd( 0x11,0xFF);
-//	add7768_write_cmd( 0x12,0xFF);
-//	add7768_write_cmd( 0x13,0xFF);
-//	add7768_write_cmd( 0x14,0xFF);
-//	HAL_Delay(100);
-		uint16_t bzy = 0;
-	bzy = add7768_write_cmd(AD7768_REG_CH_STANDBY,      0x00);
-	printf("bzy = %x\n",bzy);
+	add7768_write_cmd(AD7768_REG_CH_STANDBY,       0x00);
 	add7768_write_cmd(AD7768_REG_CH_MODE_A,        0x0C);	//设置模式A 采样x512(512个点里取一个点采集)
 	add7768_write_cmd(AD7768_REG_CH_MODE_B,        0x0D);	//设置模式B 采样x1024
 	add7768_write_cmd(AD7768_REG_CH_MODE_SEL,      0x00);	//设置所有通道使用模式A		0表示模式A 1表示模式B
@@ -60,17 +73,21 @@ void ad7768_init(void)
 	{
 		ad7768_gain_set(i+1, 0x555555);
 	}
-
+	
 	uint16_t read=0;
 	char buf[10]=" ";
 	char reg = 0;
 	for (int i = 0; i < 0x5A; i++)
 	{
 		read= add7768_write_cmd( reg | 0x80,0x00);
-		sprintf(buf,"%x=%x",reg,read);
-		printf("%s\r\n",buf);
+		sprintf(buf,"%x=%x\n\0",reg,read);
+		HAL_UART_Transmit(&huart1, &buf,strlen(buf) , 1000);
+//		printf("%s\r\n",buf);
 		reg++;
 	}
+	set_Multiple(0);
+	HAL_TIM_Base_Start_IT(&htim6);
+	hal_keyInit(Key_CallBack_t);
 }
 
 
@@ -124,9 +141,9 @@ void ad7768_read_and_print(void)
 			}
 				value[ch] = (raw / 8388608.0f * 4.095000);
 		}
-//		printf("%6f,%6f,%6f,%6f,%6f,%6f,%6f,%6f\r\n",
-//			   value[0], value[1], value[2], value[3],
-//			   value[4], value[5], value[6], value[7]);
+		printf("%6f,%6f,%6f,%6f,%6f,%6f,%6f,%6f\r\n",
+			   value[0], value[1], value[2], value[3],
+			   value[4], value[5], value[6], value[7]);
 //		printf("%x,%x,%x,%x,%x,%x,%x,%x\r\n",buf[0*4],buf[1*4],buf[2*4],buf[3*4],buf[4*4],buf[5*4],buf[6*4],buf[7*4]);
 	
 	}

@@ -620,6 +620,16 @@
               <FileType>1</FileType>
               <FilePath>..\Core\user\ad7768.c</FilePath>
             </File>
+            <File>
+              <FileName>sys.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\user\sys.c</FilePath>
+            </File>
+            <File>
+              <FileName>hal_key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\user\hal_key.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

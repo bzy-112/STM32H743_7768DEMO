@@ -28,6 +28,7 @@
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
 #include "ad7768.h"
+#include "sys.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -120,6 +121,7 @@ int main(void)
   start();
   while (1)
   {	
+	  task_key();
 	  ad7768_read_and_print();
 //	  Send_RxData();
     /* USER CODE END WHILE */

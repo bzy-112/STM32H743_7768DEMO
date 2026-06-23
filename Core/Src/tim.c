@@ -31,7 +31,7 @@ void MX_TIM6_Init(void)
 {
 
   /* USER CODE BEGIN TIM6_Init 0 */
-
+__HAL_TIM_CLEAR_FLAG(&htim6, TIM_FLAG_UPDATE);
   /* USER CODE END TIM6_Init 0 */
 
   TIM_MasterConfigTypeDef sMasterConfig = {0};
