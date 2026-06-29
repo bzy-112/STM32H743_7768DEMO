@@ -4,10 +4,10 @@
 KeyEvent_CallBack_t KeyScanCBS;
 
 								
-unsigned char KeyState[KEYNUM];			//按键状态
-unsigned short KeyScanTime[KEYNUM];		//去抖延时
-unsigned short KeyPressLongTimer[KEYNUM];	//长按延时
-unsigned short KeyContPressTimer[KEYNUM];	//连续长按延时	
+unsigned char KeyState[KEYNUM];            //按键状态
+unsigned short KeyScanTime[KEYNUM];        //去抖延时
+unsigned short KeyPressLongTimer[KEYNUM];  //长按延时
+unsigned short KeyContPressTimer[KEYNUM];  //连续长按延时	
 
 static unsigned char hal_getKEY0Sta(void)
 {
@@ -37,10 +37,10 @@ static unsigned char hal_getKEY4Sta(void)
 
 static unsigned char (*getKeysVal[KEYNUM])() = { 
                         hal_getKEY0Sta,
-//                        hal_getKEY1Sta,
-//                        hal_getKEY2Sta,
-//                        hal_getKEY3Sta,
-//	                    hal_getKEY4Sta
+  //                        hal_getKEY1Sta,
+  //                        hal_getKEY2Sta,
+  //                        hal_getKEY3Sta,
+  //	                    hal_getKEY4Sta
                     };
 
 
@@ -59,8 +59,8 @@ void hal_keyInit(KeyEvent_CallBack_t pCBS)
 	hal_KeyScanCBSRegister(pCBS);
 	for(i=0; i<KEYNUM; i++)
 	{
-		KeyState[i] = KEY_PRESSWAIT;
-		KeyScanTime[i] = KEY_SCANTIME;
+		KeyState[i]          = KEY_PRESSWAIT;
+		KeyScanTime[i]       = KEY_SCANTIME;
 		KeyPressLongTimer[i] = KEY_PRESSLONGTIME;
 		KeyContPressTimer[i] = KEY_CONTPRESSTIME;
 	}
@@ -87,7 +87,7 @@ void hal_KeyProc(void)
 			case KEY_PRESSWAIT:
 				if(!KeyLineTemp[i])
 				{
-					KeyState[i] = KEY_PRESSFIRST;	
+					KeyState[i] = KEY_PRESSFIRST;
 				}
 			break;
 			case KEY_PRESSFIRST:
@@ -96,9 +96,9 @@ void hal_KeyProc(void)
 					if(!(--KeyScanTime[i]))
 					{
 						KeyScanTime[i] = KEY_SCANTIME;
-						KeyState[i] = KEY_COUNTTIME;
-						keys = i;										//记录按键ID号
-				 		state = KEY_CLICK;								//按键单击
+						KeyState[i]    = KEY_COUNTTIME;
+						keys           = i;              //记录按键ID号
+						state          = KEY_CLICK;      //按键单击
 						 
 					}
 				}else

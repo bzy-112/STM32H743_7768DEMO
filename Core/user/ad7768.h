@@ -1,7 +1,7 @@
 #ifndef __ad7768_h
 #define __ad7768_h
 
-#define AD7768_8_CH  											4
+#define AD7768_8_CH  											8
 #define AD7768_REG_CH_STANDBY							0x00
 #define AD7768_REG_CH_MODE_A							0x01
 #define AD7768_REG_CH_MODE_B							0x02

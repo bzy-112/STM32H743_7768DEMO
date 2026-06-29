@@ -36,22 +36,22 @@ typedef enum
 // 按键检测过程
 enum
 {
-	KEY_PRESSWAIT=0,			//等待按键
-	KEY_PRESSFIRST,				//按键按下
-	KEY_COUNTTIME,				//按下计时
-	KEY_RELEASEWAIT,  			//等待释放
-	KEY_PELEASE					//释放消抖
+	KEY_PRESSWAIT  =0,           //等待按键
+	KEY_PRESSFIRST ,             //按键按下
+	KEY_COUNTTIME  ,             //按下计时
+	KEY_RELEASEWAIT,             //等待释放
+	KEY_PELEASE  				 //释放消抖
 };
 
 
 typedef enum
 {	
-	KEY_WAIT,       	 		 						//等待按键
-	KEY_CLICK,          								//单击确认
-	KEY_CLICK_RELEASE,            						//单击释放
-	KEY_LONG_PRESS,			   						 	//长按确认
-	KEY_LONG_PRESS_CONTINUE,							//长按持续
-	KEY_LONG_PRESS_RELEASE								//长按释放
+	KEY_WAIT               ,                        //等待按键
+	KEY_CLICK              ,                        //单击确认
+	KEY_CLICK_RELEASE      ,                        //单击释放
+	KEY_LONG_PRESS         ,                        //长按确认
+	KEY_LONG_PRESS_CONTINUE,                        //长按持续
+	KEY_LONG_PRESS_RELEASE  						//长按释放
 	 
 }KEY_VALUE_TYPEDEF;
 
