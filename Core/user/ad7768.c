@@ -125,7 +125,7 @@ uint32_t data_spi[8];
 void ad7768_init(void) {
   ad7768_write_reg(AD7768_REG_CH_STANDBY, 0x00);
   ad7768_write_reg(AD7768_REG_CH_MODE_A,
-                   0x0D); // 设置模式A 采样x512(512个点里取一个点采集)
+                   0x02); // 设置模式A 采样x512(512个点里取一个点采集)
   ad7768_write_reg(AD7768_REG_CH_MODE_B, 0x0D); // 设置模式B 采样x1024
   ad7768_write_reg(
       AD7768_REG_CH_MODE_SEL,
@@ -161,8 +161,9 @@ void ad7768_init(void) {
   set_Multiple(bzy);
   HAL_TIM_Base_Start_IT(&htim6);
   hal_keyInit(Key_CallBack_t);
+//      HAL_SPI_Receive_IT(&hspi2, buf, 32);
 }
-
+volatile uint16_t count[2] = {0};
 /* ================================================================
  * 纯硬件 NSS 模式数据接收 & 解析
  *
@@ -174,6 +175,7 @@ void ad7768_read_and_print(void) {
   float value[8];
   uint8_t ch;
   int ret;
+	uint8_t left_o = 0;
   /*
           while(1)
           {
@@ -200,17 +202,26 @@ void ad7768_read_and_print(void) {
           }
   */
   if (spi2_rx_done) {
-    memcpy(buf_b, buf, sizeof(buf));
-    /* ---- 解析 8 通道 ---- */
+	spi2_rx_done = 0;
+	memcpy(buf_b, buf, sizeof(buf));
+	if (((buf_b[0]) & 0x07) == 1) // 检查通道号
+	{
+		left_o = 1;
+	}
     for (ch = 0; ch < 8; ch++) {
       int raw;
-      if (((buf[ch * 4] >> 3) & 0x07) != ch) // 检查通道号
-        return;
+//	printf("count: io = %d, spi = %d\n",count[1],count[0]);
       /* buf[ch*4+0..3] = 完整 32bit 帧 (Header + 24bit ADC) */
       raw = ((uint32_t)buf_b[ch * 4] << 24) |
             ((uint32_t)buf_b[ch * 4 + 1] << 16) |
             ((uint32_t)buf_b[ch * 4 + 2] << 8) | (uint32_t)buf_b[ch * 4 + 3];
-      raw >>= 3; // spi接收延迟三位，右移 3 位，剩下 24bit ADC 数据
+		raw >>= left_o;
+		if ((raw >> 24 & 0x07) != ch) // 检查通道号
+		{
+			printf("head->ch0:%x ,ch1:%x ,ch2:%x ,ch3:%x ,ch4:%x ,ch5:%x ,ch6:%x,ch7:%x\n",buf_b[0],buf_b[4],buf_b[8],buf_b[12],buf_b[16],buf_b[20],buf_b[24],buf_b[28]);
+			printf("err\n");
+			return;
+		}
       if ((raw & 0x00800000) == 0x00800000) // 负数，符号扩展
       {
         raw |= 0xFF000000;
@@ -219,16 +230,7 @@ void ad7768_read_and_print(void) {
       }
       value[ch] = (float)(raw) / 8388608.0f * 4.096f;
     }
-    printf("head->ch1:%x ,ch2:%x ,ch3:%x ,ch4:%x ,ch5:%x ,ch6:%x,ch7:%x\n",
-           (buf_b[4] >> 3 | ((buf_b[3] & 0x07) << 5)),
-           (buf_b[8] >> 3 | ((buf_b[7] & 0x07) << 5)),
-           (buf_b[12] >> 3 | ((buf_b[11] & 0x07) << 5)),
-           (buf_b[16] >> 3 | ((buf_b[15] & 0x07) << 5)),
-           (buf_b[20] >> 3 | ((buf_b[19] & 0x07) << 5)),
-           (buf_b[24] >> 3 | ((buf_b[23] & 0x07) << 5)),
-           (buf_b[28] >> 3 | ((buf_b[27] & 0x07) << 5)));
-    printf("%6f,%6f,%6f,%6f,%6f,%6f,%6f,%6f\r\n", value[0], value[1], value[2],
-           value[3], value[4], value[5], value[6], value[7]);
+//    printf("%6f,%6f,%6f,%6f,%6f,%6f,%6f,%6f\r\n", value[0], value[1], value[2],value[3], value[4], value[5], value[6], value[7]);
     //		for(int i = 0;i < 8; i++)
     //		{
     //			printf("%x,%x,%x,%x,",buf[i*4],buf[i*4+1],buf[i*4+2],buf[i*4+3]);
@@ -238,11 +240,13 @@ void ad7768_read_and_print(void) {
 
   /* ---- 打印 ---- */
 }
-
+volatile uint16_t rececount_io = 0;
+volatile uint16_t rececount_spi = 0;
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi) {
   if (hspi == &hspi2) {
-    //			HAL_SPI_Receive_IT(&hspi2, buf, 32);
     spi2_rx_done = 1;
+//      HAL_SPI_Receive_IT(&hspi2, buf, 32);
+	  rececount_spi++;
   }
 }
 
@@ -251,5 +255,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (HAL_SPI_GetState(&hspi2) == HAL_SPI_STATE_READY) {
       HAL_SPI_Receive_IT(&hspi2, buf, 32);
     }
+	rececount_io++;
   }
 }
